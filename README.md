@@ -1,5 +1,5 @@
 # BasicAPI
-An API that was meant to use a tech stack I was not very familiar with.
+An API that was meant to teach me a tech stack I was not very familiar with.
 
 ## About
 This project is using:

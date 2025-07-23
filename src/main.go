@@ -1,19 +1,32 @@
 package main
 
 import (
+	"context"
+	"fmt"
 	"github.com/gin-gonic/gin"
+	"github.com/gocql/gocql"
 	"go-kafka-message-broker/types"
+	"log"
 	"net/http"
+	"os"
+	"time"
 )
 
-// albums slice to seed record album data.
-var albums = []types.Album{
-	{ID: "1", Title: "Blue Train", Artist: "John Coltrane", Price: 56.99},
-	{ID: "2", Title: "Jeru", Artist: "Gerry Mulligan", Price: 17.99},
-	{ID: "3", Title: "Sarah Vaughan and Clifford Brown", Artist: "Sarah Vaughan", Price: 39.99},
-}
+var (
+	cassandraHost     = os.Getenv("CASSANDRA_HOST")
+	cassandraUser     = os.Getenv("CASSANDRA_USER")
+	cassandraPassword = os.Getenv("CASSANDRA_PASSWORD")
+)
 
 func main() {
+	Session := setupCassandra()
+	defer Session.Close()
+
+	if err := Session.Query("SELECT id, title, artist, price, stockedSince FROM albums WHERE id = ? LIMIT 1", id).WithContext(context.Background()); err != nil {
+		fmt.Println("select error")
+		log.Fatal(err)
+	}
+
 	router := gin.Default()
 	router.GET("/albums", getAlbums)
 	router.GET("/albums/:id", getAlbumByID)
@@ -23,6 +36,31 @@ func main() {
 	if err != nil {
 		return
 	}
+}
+
+func setupCassandra() *gocql.Session {
+	cluster := gocql.NewCluster(cassandraHost)
+	cluster.RetryPolicy = &gocql.SimpleRetryPolicy{
+		NumRetries: 3,
+	}
+	cluster.Keyspace = "roster"
+	cluster.Consistency = gocql.Quorum
+	cluster.Authenticator = gocql.PasswordAuthenticator{
+		Username: cassandraUser,
+		Password: cassandraPassword,
+	}
+	var session *gocql.Session
+	var err error
+	for {
+		session, err = cluster.CreateSession()
+		if err == nil {
+			break
+		}
+		log.Printf("CreateSession: %v", err)
+		time.Sleep(time.Second)
+	}
+	log.Printf("Connected OK\n")
+	return session
 }
 
 // getAlbums responds with the list of all albums as JSON.

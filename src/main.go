@@ -1,19 +1,26 @@
 package main
 
 import (
+	"basic-api/db"
+	"basic-api/types"
+	"context"
+	"fmt"
 	"github.com/gin-gonic/gin"
-	"go-kafka-message-broker/types"
+	"log"
 	"net/http"
 )
 
-// albums slice to seed record album data.
-var albums = []types.Album{
-	{ID: "1", Title: "Blue Train", Artist: "John Coltrane", Price: 56.99},
-	{ID: "2", Title: "Jeru", Artist: "Gerry Mulligan", Price: 17.99},
-	{ID: "3", Title: "Sarah Vaughan and Clifford Brown", Artist: "Sarah Vaughan", Price: 39.99},
-}
-
 func main() {
+	Session := db.SetupCassandra()
+	defer Session.Close()
+
+	var album types.Album
+
+	if err := Session.Query("SELECT id, title, artist, price, stockedSince FROM albums WHERE id = ? LIMIT 1", id).WithContext(context.Background()).Scan(&album.ID, &album.Title, &album.Artist, &album.Price, &album.StockedSince); err != nil {
+		fmt.Println("select error")
+		log.Fatal(err)
+	}
+
 	router := gin.Default()
 	router.GET("/albums", getAlbums)
 	router.GET("/albums/:id", getAlbumByID)

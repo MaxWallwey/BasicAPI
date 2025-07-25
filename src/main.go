@@ -8,6 +8,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"log"
 	"net/http"
+	"os"
+	"time"
 )
 
 func main() {
@@ -30,6 +32,31 @@ func main() {
 	if err != nil {
 		return
 	}
+}
+
+func setupCassandra() *gocql.Session {
+	cluster := gocql.NewCluster(cassandraHost)
+	cluster.RetryPolicy = &gocql.SimpleRetryPolicy{
+		NumRetries: 3,
+	}
+	cluster.Keyspace = "roster"
+	cluster.Consistency = gocql.Quorum
+	cluster.Authenticator = gocql.PasswordAuthenticator{
+		Username: cassandraUser,
+		Password: cassandraPassword,
+	}
+	var session *gocql.Session
+	var err error
+	for {
+		session, err = cluster.CreateSession()
+		if err == nil {
+			break
+		}
+		log.Printf("CreateSession: %v", err)
+		time.Sleep(time.Second)
+	}
+	log.Printf("Connected OK\n")
+	return session
 }
 
 // getAlbums responds with the list of all albums as JSON.

@@ -1,19 +1,17 @@
 package main
 
 import (
+	"basic-api/cassandra"
+	"basic-api/types"
+	"fmt"
 	"github.com/gin-gonic/gin"
-	"go-kafka-message-broker/types"
-	"net/http"
+	"log"
 )
 
-// albums slice to seed record album data.
-var albums = []types.Album{
-	{ID: "1", Title: "Blue Train", Artist: "John Coltrane", Price: 56.99},
-	{ID: "2", Title: "Jeru", Artist: "Gerry Mulligan", Price: 17.99},
-	{ID: "3", Title: "Sarah Vaughan and Clifford Brown", Artist: "Sarah Vaughan", Price: 39.99},
-}
-
 func main() {
+	Session := cassandra.SetupCassandra()
+	defer Session.Close()
+
 	router := gin.Default()
 	router.GET("/albums", getAlbums)
 	router.GET("/albums/:id", getAlbumByID)
@@ -27,7 +25,7 @@ func main() {
 
 // getAlbums responds with the list of all albums as JSON.
 func getAlbums(c *gin.Context) {
-	c.IndentedJSON(http.StatusOK, albums)
+	log.Println("get albums")
 }
 
 // getAlbumByID locates the album whose ID value matches the id
@@ -35,15 +33,7 @@ func getAlbums(c *gin.Context) {
 func getAlbumByID(c *gin.Context) {
 	id := c.Param("id")
 
-	// Loop over the list of albums, looking for
-	// an album whose ID value matches the parameter.
-	for _, a := range albums {
-		if a.ID == id {
-			c.IndentedJSON(http.StatusOK, a)
-			return
-		}
-	}
-	c.IndentedJSON(http.StatusNotFound, gin.H{"message": "album not found"})
+	log.Println(fmt.Sprintf("get album with id: %s", id))
 }
 
 // postAlbums adds an album from JSON received in the request body.
@@ -56,7 +46,5 @@ func postAlbums(c *gin.Context) {
 		return
 	}
 
-	// Add the new album to the slice.
-	albums = append(albums, newAlbum)
-	c.IndentedJSON(http.StatusCreated, newAlbum)
+	log.Println(fmt.Sprintf("post album"))
 }

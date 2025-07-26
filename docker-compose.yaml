@@ -1,0 +1,32 @@
+version: '3'
+
+services:
+  server:
+    image: golang:1.24.5
+    container_name: api
+    restart: always
+    build:
+      dockerfile: Dockerfile
+    environment:
+      - CASSANDRA_HOST="cassandra"
+      - CASSANDRA_USER="max"
+      - CASSANDRA_PASSWORD="password"
+    volumes:
+      - ./src:/basic-api
+    working_dir: /basic-api
+    command: go run main.go
+  cassandra:
+    image: cassandra:latest
+    container_name: cassandra
+    ports:
+      - "9042:9042"
+    volumes:
+      - ~/apps/cassandra:/var/lib/cassandra
+    environment:
+      - CASSANDRA_SEEDS=cassandra
+      - CASSANDRA_PASSWORD_SEEDER=yes
+      - CASSANDRA_USER=max
+      - CASSANDRA_PASSWORD=password
+volumes:
+  cassandra_data:
+    driver: local

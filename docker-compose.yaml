@@ -7,10 +7,12 @@ services:
     restart: always
     build:
       dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
     environment:
-      - CASSANDRA_HOST="cassandra"
-      - CASSANDRA_USER="max"
-      - CASSANDRA_PASSWORD="password"
+      - CASSANDRA_HOST=cassandra
+      - CASSANDRA_USER=max
+      - CASSANDRA_PASSWORD=password
     volumes:
       - ./src:/basic-api
     working_dir: /basic-api
@@ -27,6 +29,3 @@ services:
       - CASSANDRA_PASSWORD_SEEDER=yes
       - CASSANDRA_USER=max
       - CASSANDRA_PASSWORD=password
-volumes:
-  cassandra_data:
-    driver: local

@@ -8,7 +8,7 @@ import (
 )
 
 var (
-	cassandraHost     = os.Getenv("CASSANDRA_HOST")
+	cassandraHost     = "cassandra"
 	cassandraUser     = os.Getenv("CASSANDRA_USER")
 	cassandraPassword = os.Getenv("CASSANDRA_PASSWORD")
 )
@@ -18,8 +18,6 @@ func SetupCassandra() *gocql.Session {
 	cluster.RetryPolicy = &gocql.SimpleRetryPolicy{
 		NumRetries: 3,
 	}
-	cluster.Keyspace = "roster"
-	cluster.Consistency = gocql.Quorum
 	cluster.Authenticator = gocql.PasswordAuthenticator{
 		Username: cassandraUser,
 		Password: cassandraPassword,

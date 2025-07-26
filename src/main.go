@@ -12,6 +12,7 @@ func main() {
 	Session := cassandra.SetupCassandra()
 	defer Session.Close()
 
+	router := gin.Default()
 	router.GET("/albums", getAlbums)
 	router.GET("/albums/:id", getAlbumByID)
 	router.POST("/albums", postAlbums)

@@ -1,4 +1,4 @@
-module go-kafka-message-broker
+module basic-api
 
 go 1.24.5
 

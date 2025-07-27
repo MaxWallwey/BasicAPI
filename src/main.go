@@ -4,17 +4,11 @@ import (
 	"basic-api/cassandra"
 	"basic-api/users"
 	"encoding/json"
-	"github.com/gocql/gocql"
 	"github.com/gorilla/mux"
-	"log"
 	"net/http"
-	"time"
 )
 
 func main() {
-	session := cassandra.SetupCassandra()
-	defer session.Close()
-
 	usersHandler := NewUsersHandler()
 	// Create the router
 	router := mux.NewRouter()
@@ -49,11 +43,22 @@ func NewUsersHandler() *UsersHandler {
 	return &UsersHandler{}
 }
 
-func (h UsersHandler) CreateUser(w http.ResponseWriter, r *http.Request) {}
+func (h UsersHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
+	var user users.User
+	if err := json.NewDecoder(r.Body).Decode(&user); err != nil {
+		InternalServerErrorHandler(w, r)
+		return
+	}
+}
+
 func (h UsersHandler) ListUsers(w http.ResponseWriter, r *http.Request) {
-	log.Printf("get users")
-	var user = users.User{ID: gocql.UUIDFromTime(time.Now()), Name: "Max", EmailAddress: "test@test.com", Birthday: time.Now()}
-	jsonBytes, err := json.Marshal(user)
+	// users.User{ID: gocql.UUIDFromTime(time.Now()), Name: "Max", EmailAddress: "test@test.com", Birthday: time.Now()}
+	session := cassandra.SetupCassandra()
+	defer session.Close()
+
+	allUsers := session.Query("SELECT * FROM store.users").Exec()
+
+	jsonBytes, err := json.Marshal(allUsers)
 	if err != nil {
 		InternalServerErrorHandler(w, r)
 		return
@@ -64,6 +69,7 @@ func (h UsersHandler) ListUsers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 }
+
 func (h UsersHandler) GetUser(w http.ResponseWriter, r *http.Request)    {}
 func (h UsersHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {}
 func (h UsersHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {}

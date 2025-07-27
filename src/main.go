@@ -1,64 +1,79 @@
 package main
 
 import (
-	"basic-api/src/cassandra"
-	"fmt"
+	"basic-api/cassandra"
+	"basic-api/users"
+	"encoding/json"
+	"github.com/gocql/gocql"
 	"github.com/gorilla/mux"
-	"io"
 	"log"
 	"net/http"
+	"time"
 )
 
 func main() {
-	Session := cassandra.SetupCassandra()
-	defer Session.Close()
+	session := cassandra.SetupCassandra()
+	defer session.Close()
 
-	handleRequest()
-}
-
-func handleRequest() {
+	usersHandler := NewUsersHandler()
+	// Create the router
 	router := mux.NewRouter()
 
-	router.HandleFunc("/users/findMany", findManyUsers).Methods(http.MethodGet)
-	router.HandleFunc("/users/fineOne/{id}", findOneUser).Methods(http.MethodGet)
-	router.HandleFunc("/users/add", addOneUser).Methods(http.MethodPost)
+	// Register the routes
+	router.HandleFunc("/users", usersHandler.ListUsers).Methods("GET")
+	router.HandleFunc("/users", usersHandler.CreateUser).Methods("POST")
+	router.HandleFunc("/users/{id}", usersHandler.GetUser).Methods("GET")
+	router.HandleFunc("/users/{id}", usersHandler.UpdateUser).Methods("PUT")
+	router.HandleFunc("/users/{id}", usersHandler.DeleteUser).Methods("DELETE")
 
-	log.Fatal(http.ListenAndServe("0.0.0.0:8080", nil))
-}
-
-// findManyUsers responds with the list of all users as JSON.
-func findManyUsers(w http.ResponseWriter, r *http.Request) {
-	log.Println("get users")
-
-	//err := json.NewEncoder(w).Encode(users)
-	//if err != nil {
-	//	return
-	//}
-}
-
-// findOneUser locates the user whose ID value matches the id
-// parameter sent by the client, then returns that user as a response.
-func findOneUser(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	id := vars["id"]
-
-	// Send JSON response
-	w.Header().Set("Content-Type", "application/json")
-	//err := json.NewEncoder(w).Encode(user)
-	//if err != nil {
-	//	return
-	//}
-
-	log.Println(fmt.Sprintf("get user with id: %s", id))
-}
-
-// addOneUser adds a user from JSON received in the request body.
-func addOneUser(w http.ResponseWriter, r *http.Request) {
-	_, err := io.ReadAll(r.Body)
+	// Start the server
+	err := http.ListenAndServe("0.0.0.0:8080", router)
 	if err != nil {
-		http.Error(w, "Error reading request body", http.StatusBadRequest)
 		return
 	}
+}
 
-	log.Println(fmt.Sprintf("post user"))
+type userStore interface {
+	Add(name string, user users.User) error
+	Get(name string) (users.User, error)
+	List() (map[string]users.User, error)
+	Update(name string, user users.User) error
+	Remove(name string) error
+}
+
+type UsersHandler struct {
+	store userStore
+}
+
+func NewUsersHandler() *UsersHandler {
+	return &UsersHandler{}
+}
+
+func (h UsersHandler) CreateUser(w http.ResponseWriter, r *http.Request) {}
+func (h UsersHandler) ListUsers(w http.ResponseWriter, r *http.Request) {
+	log.Printf("get users")
+	var user = users.User{ID: gocql.UUIDFromTime(time.Now()), Name: "Max", EmailAddress: "test@test.com", Birthday: time.Now()}
+	jsonBytes, err := json.Marshal(user)
+	if err != nil {
+		InternalServerErrorHandler(w, r)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+	_, err = w.Write(jsonBytes)
+	if err != nil {
+		return
+	}
+}
+func (h UsersHandler) GetUser(w http.ResponseWriter, r *http.Request)    {}
+func (h UsersHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {}
+func (h UsersHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {}
+
+func InternalServerErrorHandler(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusInternalServerError)
+	w.Write([]byte("500 Internal Server Error"))
+}
+
+func NotFoundHandler(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotFound)
+	w.Write([]byte("404 Not Found"))
 }

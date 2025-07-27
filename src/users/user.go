@@ -1,4 +1,4 @@
-package types
+package users
 
 import (
 	"github.com/gocql/gocql"

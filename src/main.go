@@ -65,6 +65,7 @@ func (h UsersHandler) GetUser(w http.ResponseWriter, r *http.Request) {
 	err := session.Query("SELECT * FROM store.users WHERE id = ? LIMIT 1", id).Consistency(gocql.One).Scan(&user)
 	if err != nil {
 		InternalServerErrorHandler(w, r)
+		return
 	}
 
 	jsonBytes, err := json.Marshal(user)

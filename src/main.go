@@ -8,13 +8,9 @@ import (
 	"github.com/gorilla/mux"
 	"log"
 	"net/http"
-	"time"
 )
 
 func main() {
-	session := cassandra.SetupCassandra()
-	defer session.Close()
-
 	usersHandler := NewUsersHandler()
 	// Create the router
 	router := mux.NewRouter()
@@ -49,31 +45,75 @@ func NewUsersHandler() *UsersHandler {
 	return &UsersHandler{}
 }
 
-func (h UsersHandler) CreateUser(w http.ResponseWriter, r *http.Request) {}
-func (h UsersHandler) ListUsers(w http.ResponseWriter, r *http.Request) {
-	log.Printf("get users")
-	var user = users.User{ID: gocql.UUIDFromTime(time.Now()), Name: "Max", EmailAddress: "test@test.com", Birthday: time.Now()}
+func (h UsersHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
+	var user users.User
+	if err := json.NewDecoder(r.Body).Decode(&user); err != nil {
+		InternalServerErrorHandler(w, r)
+		return
+	}
+
+	ctx := r.Context()
+
+	session := cassandra.SetupCassandra()
+	defer session.Close()
+
+	err := session.Query("INSERT INTO store.users (id, name, email_address, last_updated_timestamp) VALUES (?,?,?,?)", user.ID, user.Name, user.EmailAddress, user.LastUpdatedTimestamp).WithContext(ctx).Exec()
+	if err != nil {
+		InternalServerErrorHandler(w, r)
+		return
+	}
+
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(user)
+}
+
+func (h UsersHandler) ListUsers(w http.ResponseWriter, r *http.Request) {}
+func (h UsersHandler) GetUser(w http.ResponseWriter, r *http.Request) {
+	id := mux.Vars(r)["id"]
+
+	log.Printf(id)
+
+	ctx := r.Context()
+
+	session := cassandra.SetupCassandra()
+	defer session.Close()
+
+	var user users.User
+
+	err := session.Query("SELECT * FROM store.users WHERE id = ? LIMIT 1", id).Consistency(gocql.One).WithContext(ctx).Scan(&user)
+	if err != nil {
+		NotFoundHandler(w, r)
+		return
+	}
+
+	log.Printf("%+v\n", user)
+
 	jsonBytes, err := json.Marshal(user)
 	if err != nil {
 		InternalServerErrorHandler(w, r)
 		return
 	}
-	w.WriteHeader(http.StatusOK)
+
 	_, err = w.Write(jsonBytes)
 	if err != nil {
 		return
 	}
 }
-func (h UsersHandler) GetUser(w http.ResponseWriter, r *http.Request)    {}
 func (h UsersHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {}
 func (h UsersHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {}
 
 func InternalServerErrorHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusInternalServerError)
-	w.Write([]byte("500 Internal Server Error"))
+	_, err := w.Write([]byte("500 Internal Server Error"))
+	if err != nil {
+		return
+	}
 }
 
 func NotFoundHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotFound)
-	w.Write([]byte("404 Not Found"))
+	_, err := w.Write([]byte("404 Not Found"))
+	if err != nil {
+		return
+	}
 }

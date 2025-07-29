@@ -4,6 +4,7 @@ import (
 	"basic-api/cassandra"
 	"basic-api/users"
 	"encoding/json"
+	"github.com/gocql/gocql"
 	"github.com/gorilla/mux"
 	"net/http"
 )
@@ -51,26 +52,32 @@ func (h UsersHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (h UsersHandler) ListUsers(w http.ResponseWriter, r *http.Request) {
+func (h UsersHandler) ListUsers(w http.ResponseWriter, r *http.Request) {}
+func (h UsersHandler) GetUser(w http.ResponseWriter, r *http.Request) {
+	id := mux.Vars(r)["id"]
+
 	// users.User{ID: gocql.UUIDFromTime(time.Now()), Name: "Max", EmailAddress: "test@test.com", Birthday: time.Now()}
 	session := cassandra.SetupCassandra()
 	defer session.Close()
 
-	allUsers := session.Query("SELECT * FROM store.users").Exec()
+	var user users.User
 
-	jsonBytes, err := json.Marshal(allUsers)
+	err := session.Query("SELECT * FROM store.users WHERE id = ? LIMIT 1", id).Consistency(gocql.One).Scan(&user)
+	if err != nil {
+		InternalServerErrorHandler(w, r)
+	}
+
+	jsonBytes, err := json.Marshal(user)
 	if err != nil {
 		InternalServerErrorHandler(w, r)
 		return
 	}
-	w.WriteHeader(http.StatusOK)
+
 	_, err = w.Write(jsonBytes)
 	if err != nil {
 		return
 	}
 }
-
-func (h UsersHandler) GetUser(w http.ResponseWriter, r *http.Request)    {}
 func (h UsersHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {}
 func (h UsersHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {}
 

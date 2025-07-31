@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"github.com/gocql/gocql"
 	"github.com/gorilla/mux"
-	"log"
 	"net/http"
 )
 
@@ -71,22 +70,18 @@ func (h UsersHandler) ListUsers(w http.ResponseWriter, r *http.Request) {}
 func (h UsersHandler) GetUser(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
 
-	log.Printf(id)
-
 	ctx := r.Context()
 
 	session := cassandra.SetupCassandra()
 	defer session.Close()
 
 	var user users.User
-
-	err := session.Query("SELECT * FROM store.users WHERE id = ? LIMIT 1", id).Consistency(gocql.One).WithContext(ctx).Scan(&user)
+	queryString := "SELECT id, name, email_address, last_updated_timestamp FROM store.users WHERE id = ? LIMIT 1"
+	err := session.Query(queryString, id).Consistency(gocql.One).WithContext(ctx).Scan(&user.ID, &user.Name, &user.EmailAddress, &user.LastUpdatedTimestamp)
 	if err != nil {
 		NotFoundHandler(w, r)
 		return
 	}
-
-	log.Printf("%+v\n", user)
 
 	jsonBytes, err := json.Marshal(user)
 	if err != nil {
